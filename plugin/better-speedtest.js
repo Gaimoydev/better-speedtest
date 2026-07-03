@@ -13,9 +13,9 @@
   }
   const BIN_SOURCES = [
     { url: DEFAULT_BIN_URL, proxy: '' },
-    { url: 'https://github.com/Gaimoydev/better-speedtest/releases/latest/download/better-speedtest-linux-{arch}', proxy: '' },
     { url: 'https://github.com/Gaimoydev/better-speedtest/releases/latest/download/better-speedtest-linux-{arch}', proxy: 'https://gh-proxy.org/' },
-    { url: 'https://github.com/Gaimoydev/better-speedtest/releases/latest/download/better-speedtest-linux-{arch}', proxy: 'https://ghfast.top/' }
+    { url: 'https://github.com/Gaimoydev/better-speedtest/releases/latest/download/better-speedtest-linux-{arch}', proxy: 'https://ghfast.top/' },
+    { url: 'https://github.com/Gaimoydev/better-speedtest/releases/latest/download/better-speedtest-linux-{arch}', proxy: '' }
   ]
   const LOG_TAG = (...a) => console.log(`[${NAME}]`, ...a)
 
