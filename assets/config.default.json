@@ -1,0 +1,247 @@
+{
+  "version": 1,
+  "engine": {
+    "threads_dl": 8,
+    "threads_ul": 4,
+    "threads_dl_max": 64,
+    "threads_ul_max": 32,
+    "duration_s": 15,
+    "warmup_s": 5,
+    "sample_interval_ms": 1000,
+    "chunk_bytes": 65536,
+    "wan_iface": "auto",
+    "log_path": "/tmp/better-speedtest.log"
+  },
+  "manual": {
+    "carrier": "",
+    "province": "",
+    "city": ""
+  },
+  "detect_order": {
+    "carrier": [
+      "manual",
+      "at",
+      "geo:aapq",
+      "geo:ipip",
+      "geo:cnspeed"
+    ],
+    "location": [
+      "manual",
+      "geo:aapq",
+      "geo:ipip",
+      "geo:cnspeed"
+    ]
+  },
+  "at": {
+    "ports": [
+      "/dev/smd11",
+      "/dev/smd7",
+      "/dev/smd8",
+      "/dev/at_mdm0",
+      "/dev/at_usb0"
+    ],
+    "read_timeout_ms": 1500,
+    "cmds": {
+      "cops_set": "AT+COPS=3,2",
+      "cops_query": "AT+COPS?",
+      "imsi": "AT+CIMI"
+    }
+  },
+  "carrier_map": {
+    "46000": "移动",
+    "46002": "移动",
+    "46004": "移动",
+    "46007": "移动",
+    "46008": "移动",
+    "46020": "移动",
+    "46001": "联通",
+    "46006": "联通",
+    "46009": "联通",
+    "46003": "电信",
+    "46005": "电信",
+    "46011": "电信",
+    "46015": "广电"
+  },
+  "carrier_fallback": {
+    "广电": "移动"
+  },
+  "geo_providers": {
+    "aapq": {
+      "url": "https://ab5220bc47ba.aapq.net/ip",
+      "fingerprint": "chrome",
+      "format": "json",
+      "map": {
+        "ip": "ip",
+        "carrier": "asname",
+        "province": "regionName",
+        "city": "cityName",
+        "lat": "latitude",
+        "lon": "longitude"
+      }
+    },
+    "ipip": {
+      "url": "https://myip.ipip.net/json",
+      "fingerprint": "none",
+      "format": "json",
+      "map": {
+        "ip": "data.ip",
+        "loc_array": "data.location",
+        "province_idx": 1,
+        "city_idx": 2,
+        "carrier_idx": 4
+      }
+    },
+    "cnspeed": {
+      "url": "https://dlcv2.cnspeedtest.cn:8443/dataServer/getIpLocSP.php",
+      "fingerprint": "none",
+      "format": "pipe",
+      "map": {
+        "ip_field": 0,
+        "loc_array_field": 1,
+        "carrier_field": 3
+      }
+    }
+  },
+  "cnspeed": {
+    "enabled": true,
+    "control_base": "https://dlcv2.cnspeedtest.cn:8443",
+    "download_base": "https://down.cnspeedtest.cn:8043",
+    "pkg": "com.cnspeedtest.globalspeed",
+    "des_key": "dw!@#$%^",
+    "paths": {
+      "serverlist": "/TaierAndroid/Config/serverlist_encrypt.json",
+      "mobilematch": "/dataServer/mobilematch_many.php",
+      "iploc": "/dataServer/getIpLocSP.php",
+      "node_dovalid": "/speed/dovalid",
+      "node_download": "/speed/File(1G).dl",
+      "node_upload": "/speed/doAnalsLoad.do"
+    },
+    "token": {
+      "algo": "md5_of_md5_plus_md5",
+      "part1": "model=Android&imei={imei}",
+      "part2": "stime={t}&band=200&rand=12345555"
+    }
+  },
+  "cdn_sources": [
+    {
+      "name": "realme OTA",
+      "dl": "https://gauss-componentotacostmanual-cn.allawnfs.com/remove-3b1e78aa01ec7d57d31851c7938b305e/component-ota/24/10/22/ca8caed4166e43a8b65ffe2c6f15b173.zip",
+      "region": "cn",
+      "enhanced": true,
+      "ua": "Dalvik/2.1.0 (Linux; U; Android 13)",
+      "note": "realme/OPPO OTA 大包(~500MB,支持 Range);⚠️ 该 CDN 会 403 掉 Chrome/okhttp/Go 默认 UA,必须用此 ua 覆盖"
+    },
+    {
+      "name": "移动云盘大文件",
+      "dl": "http://yun.mcloud.139.com/hongseyunpan/2.43G.zip",
+      "region": "cn",
+      "enhanced": true,
+      "note": "2.43G 大文件,适合多连接跑满高带宽"
+    },
+    {
+      "name": "移动云盘",
+      "dl": "https://yun.mcloud.139.com/mCloudPc/v832/mCloud_Setup-001.exe",
+      "region": "cn"
+    },
+    {
+      "name": "淘宝CDN",
+      "dl": "http://download.taobaocdn.com/wireless/taobao4android/latest/701483.apk",
+      "region": "cn",
+      "enhanced": true
+    },
+    {
+      "name": "华为应用市场",
+      "dl": "https://store-drcn.hispace.dbankcloud.cn/dl/appdl/application/apk/ce/cea074d22c784e4ab8a5b19ba8b493a5/com.huawei.appmarket.1908281654.apk?maple=0&trackId=0&distOpEntity=HWSW",
+      "region": "cn",
+      "enhanced": true
+    },
+    {
+      "name": "华为官网",
+      "dl": "https://consumer.huawei.com/content/dam/huawei-cbg-site/cn/mkt/harmonyos-3/video/privacy/privacy-safe-center.webm",
+      "region": "cn"
+    },
+    {
+      "name": "华为年度视频",
+      "dl": "https://www-file.huawei.com/-/media/corp2020/videos/minisite-videos/annual-video-2024-2025-cn-1080.mp4",
+      "region": "cn",
+      "enhanced": true
+    },
+    {
+      "name": "华为WeLink",
+      "dl": "https://static.hc-cdn.com/installpkg/WeLink_setup.exe",
+      "region": "cn",
+      "enhanced": true
+    },
+    {
+      "name": "咪咕视频",
+      "dl": "https://img.aikan.miguvideo.com/publish/noms/2024/04/22/1O5MNLF3AN2JL.gif",
+      "region": "cn"
+    },
+    {
+      "name": "微信",
+      "dl": "https://finder.video.qq.com/251/20302/stodownload?encfilekey=REPLACE&token=REPLACE",
+      "region": "cn",
+      "note": "token 会过期,失效换新 URL"
+    },
+    {
+      "name": "Cloudflare",
+      "dl": "https://speed.cloudflare.com/__down?bytes=50000000",
+      "ul": "https://speed.cloudflare.com/__up",
+      "region": "global"
+    },
+    {
+      "name": "Cachefly",
+      "dl": "https://cachefly.cachefly.net/50mb.test",
+      "region": "global"
+    },
+    {
+      "name": "Steam-Akamai",
+      "dl": "https://cdn.akamai.steamstatic.com/steam/apps/1063730/extras/NW_Sword_Sorcery_2.gif",
+      "region": "global"
+    },
+    {
+      "name": "Steam-CF",
+      "dl": "https://cdn.cloudflare.steamstatic.com/steam/apps/1063730/extras/NW_Sword_Sorcery_2.gif",
+      "region": "global"
+    },
+    {
+      "name": "Apple",
+      "dl": "https://store.storevideos.cdn-apple.com/v1/store.apple.com/st/1666383693478/atvloop-video-202210/streams_atvloop-video-202210/1920x1080/fileSequence3.m4s",
+      "region": "global"
+    },
+    {
+      "name": "OVH",
+      "dl": "https://proof.ovh.net/files/100Mb.dat",
+      "region": "global"
+    },
+    {
+      "name": "Google",
+      "dl": "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
+      "region": "global",
+      "enhanced": true
+    }
+  ],
+  "ookla": {
+    "enabled": true,
+    "config_url": "https://www.speedtest.net/api/js/config-sdk?engine=js&limit=1000&https_functional=true",
+    "download_size": 100000000,
+    "scheme": "https",
+    "limit": 10
+  },
+
+  "install": {
+    "binary_url": "https://tapan.top/d/UFITOOLS-U60Pro/file/better-speedtest-linux-{arch}",
+    "proxy": "",
+    "dest": "/data/plugins/better-speedtest/better-speedtest"
+  },
+  "updates": {
+    "mccmnc_url": "https://mcc-mnc.net/mcc-mnc.csv",
+    "mccmnc_refresh_days": 7,
+    "serverlist_refresh_hours": 24
+  },
+  "http": {
+    "chrome_ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "utls_profile": "chrome_124",
+    "timeout_s": 12
+  }
+}
