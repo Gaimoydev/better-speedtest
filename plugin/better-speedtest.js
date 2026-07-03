@@ -246,6 +246,9 @@
 .st-init-mrow .st-input{flex:1}
 .st-init-upload{display:block;text-align:center;font-size:12px;color:var(--acc);cursor:pointer;padding:9px;border:1px dashed var(--line);border-radius:9px;transition:background .15s}
 .st-init-upload:hover{background:rgba(255,255,255,.03)}
+.st-init-hint{font-size:11.5px;line-height:1.45;color:var(--muted2);text-align:center;margin-top:-2px;overflow-wrap:anywhere}
+.st-init-hint a{color:var(--acc);text-decoration:none}
+.st-init-hint b{color:var(--txt);font-weight:650}
 #${NAME}_panel.st-reveal .st-gsec,#${NAME}_panel.st-reveal .st-stats,#${NAME}_panel.st-reveal .st-node,#${NAME}_panel.st-reveal .st-csec,#${NAME}_panel.st-reveal .st-ctrls{animation:st-fadein .52s cubic-bezier(.32,.72,0,1)}
 `
 
@@ -325,6 +328,7 @@
     <div class="st-init-more" id="${NAME}_initmore">
       <div class="st-init-mrow"><input class="st-input" id="${NAME}_initurl" placeholder="自定义二进制下载 URL(可含 {arch})"><button class="st-btn" data-iact="saveurl">保存</button></div>
       <label class="st-init-upload">手动选择二进制文件上传<input type="file" id="${NAME}_initfile" hidden></label>
+      <div class="st-init-hint">手动上传请从 <a href="https://github.com/Gaimoydev/better-speedtest/releases" target="_blank" rel="noopener">https://github.com/Gaimoydev/better-speedtest/releases</a> 下载 <b>better-speedtest-linux-arm64</b></div>
     </div>
   </div>
   </div></div>`)
