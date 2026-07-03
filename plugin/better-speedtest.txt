@@ -1,5 +1,3 @@
-<!-- [KANO_PLUGIN_START] better-speedtest -->
-<!-- [KANO_META] sid=better-speedtest.txt;v=0.0.5;no=901;pub=901.txt -->
 //<script>
 (async () => {
   'use strict'
@@ -696,5 +694,3 @@
   LOG_TAG('v2 loaded')
 })()
 //</script >
-
-<!-- [KANO_PLUGIN_END] better-speedtest -->
