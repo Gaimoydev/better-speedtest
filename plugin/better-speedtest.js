@@ -391,6 +391,18 @@
 
   let chart = null, testing = false, stopReq = false, mccAutoStarted = false, dir = 'both', testType = lsGet(NAME + '_type', 'auto'), pickedNode = '', pickedCdn = '', pickedOokla = ''
   const setStatus = (s, warn) => { const e = $('st'); e.textContent = s; e.style.color = warn ? '#ff8a8a' : '' }
+  function updateSourcePreview(kind = testType) {
+    const node = kind === 'cdn' ? (pickedCdn || '自动 · CDN 择优')
+      : kind === 'ookla' ? (pickedOokla || '自动 · Ookla 择优')
+      : kind === 'cnspeed' ? (pickedNode || '自动 · 就近节点')
+      : '自动 · CLI 决定'
+    const meta = kind === 'cdn' ? 'cdn · 自定义 CDN'
+      : kind === 'ookla' ? 'ookla · Speedtest.net'
+      : kind === 'cnspeed' ? 'cnspeed · 全球网测'
+      : 'auto · 全球网测 / CDN / Ookla'
+    $('nt').textContent = node
+    $('ns').textContent = meta
+  }
   const startBtn = () => panel.querySelector('.st-ctrls .st-btn[data-act="start"]')
   function setTesting(on) { testing = on; const b = startBtn(); if (b) { b.textContent = on ? '停止测速' : '开始测速'; b.classList.toggle('danger', on) } }
   async function stopTest() { stopReq = true; setStatus('停止中…'); gaugeStatus('停止中…'); await sh(`for p in $(pidof better-speedtest 2>/dev/null); do kill -9 $p; done; echo stopped`, 6000) }
@@ -416,6 +428,7 @@
     if (dir === 'dl') args += ' --no-upload'; else if (dir === 'ul') args += ' --no-download'
     const picked = kind === 'cdn' ? pickedCdn : kind === 'ookla' ? pickedOokla : kind === 'cnspeed' ? pickedNode : ''
     if (picked) args += ' --node ' + shq(picked)
+    updateSourcePreview(kind)
     await sh(`for p in $(pidof better-speedtest 2>/dev/null); do kill -9 $p; done; : > ${LOG}; cd ${DIR} && (${BIN} ${args} > ${LOG} 2>&1 &); echo go`, 8000)
     const t0 = performance.now(), TIMEOUT = 130000
     let done = false
@@ -523,6 +536,7 @@
       if (isCdn) { pickedCdn = v; setStatus(v ? ('CDN 源: ' + v) : 'CDN 自动') }
       else if (isOokla) { pickedOokla = v; setStatus(v ? ('Ookla: ' + v) : 'Ookla 自动') }
       else { pickedNode = v; setStatus(v ? ('已选节点: ' + v) : '自动就近') }
+      updateSourcePreview(isCdn ? 'cdn' : isOokla ? 'ookla' : 'cnspeed')
       listEl.querySelectorAll('.st-pk-row').forEach(x => x.classList.toggle('sel', x === r))
     })
   }
@@ -654,7 +668,7 @@
     <div class="st-fs wide"><h4>自定义测速源 (CDN)</h4><div id="${NAME}_cdnlist"></div><button class="st-btn ghost" id="${NAME}_cdnadd" style="margin-top:2px">+ 添加</button><div style="font-size:11px;color:var(--muted2);margin-top:6px">上传测试会 POST 到该 URL,不支持则显示“不行”。</div></div>
     <div class="st-fs wide"><h4>二进制下载 / 更新源</h4><div class="st-row"><label>binary_url</label><input class="st-input" id="${NAME}_burl" value="${esc(inst.binary_url || DEFAULT_BIN_URL)}" placeholder="${esc(DEFAULT_BIN_URL)}"></div><div class="st-row"><label>manifest</label><input class="st-input" id="${NAME}_murl" value="${esc(inst.manifest_url)}" placeholder="可选,含 sha256"></div><div class="st-row"><label>代理前缀</label><input class="st-input" id="${NAME}_prx" value="${esc(inst.proxy)}" placeholder="https://ghfast.top/"></div><div class="st-row"><button class="st-btn primary" id="${NAME}_install">安装 / 更新</button><button class="st-btn" id="${NAME}_updtbl">更新运营商表</button></div><div class="st-logbody" id="${NAME}_instlog" style="display:none;border:1px solid var(--line2);border-radius:8px;padding:8px;margin-top:6px"></div></div>
     <div class="st-fs"><div class="st-row"><button class="st-btn primary" id="${NAME}_save">保存设置</button><span id="${NAME}_savemsg" style="font-size:11.5px;color:var(--muted)"></span></div></div>`
-    w.querySelectorAll(`#${NAME}_typesel button`).forEach(b => b.onclick = () => { testType = b.dataset.tp; lsSet(NAME + '_type', testType); b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); setStatus(({ auto: '类型: 自动', cnspeed: '类型: 全球网测', ookla: '类型: Ookla', cdn: '类型: 自定义 CDN 源' })[testType] || '类型: 自动') })
+    w.querySelectorAll(`#${NAME}_typesel button`).forEach(b => b.onclick = () => { testType = b.dataset.tp; lsSet(NAME + '_type', testType); b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); updateSourcePreview(testType); setStatus(({ auto: '类型: 自动', cnspeed: '类型: 全球网测', ookla: '类型: Ookla', cdn: '类型: 自定义 CDN 源' })[testType] || '类型: 自动') })
     w.querySelectorAll(`#${NAME}_dir button`).forEach(b => b.onclick = () => { dir = b.dataset.dir; b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)) })
     w.querySelectorAll(`#${NAME}_dispsel button`).forEach(b => b.onclick = () => { dispMode = b.dataset.d; lsSet(NAME + '_disp', dispMode); saveUI({ disp: dispMode }); b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); viz = mkViz(); viz.set(0); $('big').textContent = '0.0' })
     w.querySelectorAll(`#${NAME}_animsel button`).forEach(b => b.onclick = () => { animMode = b.dataset.a; lsSet(NAME + '_anim', animMode); saveUI({ anim: animMode }); b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); rollRoot = null; $('big').textContent = '0.0' })
