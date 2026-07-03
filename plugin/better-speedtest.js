@@ -645,6 +645,7 @@
       $('ns').textContent = '—'
       setStatus('已卸载测速核心')
       say('已删除 ' + DIR)
+      setTimeout(() => location.reload(), 900)
     } else {
       setStatus('卸载失败', 1)
       say(out || '卸载失败')
