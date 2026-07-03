@@ -240,6 +240,7 @@
 .st-init-bar{height:8px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden;margin:14px auto 0;max-width:360px}
 .st-init-fill{height:100%;width:0;border-radius:5px;background:var(--acc);transition:width .45s cubic-bezier(.32,.72,0,1)}
 .st-init-pct{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:9px;min-height:16px}
+.st-init-step{font-size:11.5px;color:var(--muted2);margin-top:5px;min-height:16px;overflow-wrap:anywhere}
 .st-init-actions{display:flex;gap:10px;justify-content:center;margin-top:20px}
 .st-init-more{display:none;flex-direction:column;gap:10px;margin:16px auto 0;max-width:380px;text-align:left}
 .st-init-mrow{display:flex;gap:8px}
@@ -324,6 +325,7 @@
     <div class="st-init-arch" id="${NAME}_initarch">检测设备架构…</div>
     <div class="st-init-bar"><div class="st-init-fill" id="${NAME}_initfill"></div></div>
     <div class="st-init-pct" id="${NAME}_initpct"></div>
+    <div class="st-init-step" id="${NAME}_initstep">当前步骤: 等待开始</div>
     <div class="st-init-actions"><button class="st-btn primary" data-iact="install">下载并安装</button><button class="st-btn ghost" data-iact="adv">自定义 / 手动</button></div>
     <div class="st-init-more" id="${NAME}_initmore">
       <div class="st-init-mrow"><input class="st-input" id="${NAME}_initurl" placeholder="自定义二进制下载 URL(可含 {arch})"><button class="st-btn" data-iact="saveurl">保存</button></div>
@@ -334,6 +336,7 @@
   </div></div>`)
 
   const $ = id => panel.querySelector(`#${NAME}_${id}`)
+  const setInitStep = s => { const e = $('initstep'); if (e) e.textContent = s ? `当前步骤: ${s}` : '' };
   let dispMode = UI0.disp || lsGet(NAME + '_disp', 'gauge'), animMode = UI0.anim || lsGet(NAME + '_anim', 'ios')
   function buildNumber(host) {
     const blob = document.createElement('div'); blob.className = 'st-blob'; host.insertBefore(blob, host.firstChild)
@@ -554,41 +557,69 @@
     return out
   }
   async function binaryRuns(pathTo) { const v = (((await sh(`${pathTo} version 2>/dev/null`, 8000)).content) || '').trim(); return /better-speedtest/i.test(v) ? v : '' }
-  async function downloadOne(full, onProg, log) {
+  async function downloadOne(full, onProg, log, onStep) {
+    const fmt = n => (n / 1048576).toFixed(1) + ' MB'
+    const short = full.replace(/^https?:\/\//, '').slice(0, 58)
     let total = 0
-    try { const h = (((await sh(`curl -sIL --connect-timeout 12 ${shq(full)} 2>/dev/null | tr -d '\\r' | awk 'tolower($1)=="content-length:"{v=$2} END{print v+0}'`, 20000)).content) || '').trim(); total = parseInt(h) || 0 } catch (e) {}
+    onStep && onStep('获取文件大小: ' + short)
+    try {
+      const h = (((await sh(`curl -sIL --connect-timeout 12 ${shq(full)} 2>/dev/null | tr -d '\\r' | awk 'tolower($1)=="content-length:"{v=$2} END{print v+0}'`, 20000)).content) || '').trim()
+      total = parseInt(h) || 0
+    } catch (e) {}
+    onStep && onStep(total ? ('文件大小 ' + fmt(total)) : '文件大小未知,继续下载')
+    onStep && onStep('启动下载进程')
     await sh(`rm -f ${BIN}.tmp ${BIN}.flag; mkdir -p ${DIR}; ( curl -fL --retry 1 --connect-timeout 15 --max-time 170 -o ${BIN}.tmp ${shq(full)} 2>/dev/null && echo ok > ${BIN}.flag || echo fail > ${BIN}.flag ) & echo started`, 8000)
     const t0 = performance.now(), TIMEOUT = 180000; let flag = ''
     while (performance.now() - t0 < TIMEOUT) {
       await wait(500)
       const r = ((await sh(`wc -c < ${BIN}.tmp 2>/dev/null; echo ---; cat ${BIN}.flag 2>/dev/null`, 5000)).content) || ''
       const parts = r.split('---'); const got = parseInt((parts[0] || '').trim()) || 0; flag = (parts[1] || '').trim()
-      onProg && onProg(total ? Math.min(got / total, 1) : 0, got, total)
+      const pct = total ? Math.min(got / total, 1) : 0
+      onProg && onProg(pct, got, total)
+      const elapsed = Math.max(1, (performance.now() - t0) / 1000)
+      const speed = got ? ` · ${fmt(got / elapsed)}/s` : ''
+      onStep && onStep(total ? `下载中 ${fmt(got)} / ${fmt(total)}${speed}` : `下载中 ${fmt(got)}${speed}`)
       if (flag) break
     }
-    if (flag !== 'ok') { await sh(`for p in $(pidof curl 2>/dev/null); do kill -9 $p; done; rm -f ${BIN}.tmp ${BIN}.flag`, 5000); return false }
+    if (flag !== 'ok') {
+      onStep && onStep(flag ? '下载失败,清理临时文件' : '下载超时,清理临时文件')
+      await sh(`for p in $(pidof curl 2>/dev/null); do kill -9 $p; done; rm -f ${BIN}.tmp ${BIN}.flag`, 5000)
+      return false
+    }
+    onStep && onStep('设置执行权限')
     await sh(`chmod +x ${BIN}.tmp`)
-    if (!(await binaryRuns(`${BIN}.tmp`))) { log && log('✗ 非可用二进制(损坏/错架构)'); await sh(`rm -f ${BIN}.tmp ${BIN}.flag`); return false }
-    await sh(`mv ${BIN}.tmp ${BIN} && chmod +x ${BIN}; rm -f ${BIN}.flag`); return true
+    onStep && onStep('验证二进制是否可运行')
+    if (!(await binaryRuns(`${BIN}.tmp`))) { log && log('✗ 非可用二进制(损坏/错架构)'); onStep && onStep('验证失败,清理临时文件'); await sh(`rm -f ${BIN}.tmp ${BIN}.flag`); return false }
+    onStep && onStep('替换安装文件')
+    await sh(`mv ${BIN}.tmp ${BIN} && chmod +x ${BIN}; rm -f ${BIN}.flag`)
+    onStep && onStep('安装完成')
+    return true
   }
-  async function installFromFile(file, onProg, log) {
+  async function installFromFile(file, onProg, log, onStep) {
     try {
+      onStep && onStep('读取本地文件')
       const buf = new Uint8Array(await file.arrayBuffer())
+      onStep && onStep(`本地文件 ${(buf.length / 1048576).toFixed(1)} MB,准备编码`)
       let s = ''; const CS = 32768
       for (let i = 0; i < buf.length; i += CS) s += String.fromCharCode.apply(null, buf.subarray(i, i + CS))
       const b64 = btoa(s)
-      log && log('写入设备…'); onProg && onProg(.1)
+      log && log('写入设备…'); onProg && onProg(.1); onStep && onStep('创建安装目录')
       await sh(`mkdir -p ${DIR}; rm -f ${BIN}.b64 ${BIN}.tmp`, 6000)
       const CH = 60000
       for (let i = 0; i < b64.length; i += CH) {
         await sh(`printf '%s' '${b64.slice(i, i + CH)}' >> ${BIN}.b64`, 12000)
-        onProg && onProg(Math.min(.1 + .75 * (i / b64.length), .85))
+        const pct = Math.min(.1 + .75 * (i / b64.length), .85)
+        onProg && onProg(pct)
+        onStep && onStep(`上传本地文件 ${Math.round(pct * 100)}%`)
       }
+      onStep && onStep('解码并设置执行权限')
       const r = ((await sh(`base64 -d ${BIN}.b64 > ${BIN}.tmp 2>/dev/null && chmod +x ${BIN}.tmp && rm -f ${BIN}.b64 && echo ok`, 30000)).content) || ''
       onProg && onProg(.92)
-      if (!/ok/.test(r) || !(await binaryRuns(`${BIN}.tmp`))) { log && log('✗ 非可用二进制(选错文件/架构?)'); await sh(`rm -f ${BIN}.tmp ${BIN}.b64`); return false }
-      await sh(`mv ${BIN}.tmp ${BIN} && chmod +x ${BIN}`); onProg && onProg(1); return true
-    } catch (e) { log && log('✗ 读取文件失败: ' + (e && e.message || e)); return false }
+      onStep && onStep('验证二进制是否可运行')
+      if (!/ok/.test(r) || !(await binaryRuns(`${BIN}.tmp`))) { log && log('✗ 非可用二进制(选错文件/架构?)'); onStep && onStep('验证失败,清理临时文件'); await sh(`rm -f ${BIN}.tmp ${BIN}.b64`); return false }
+      onStep && onStep('替换安装文件')
+      await sh(`mv ${BIN}.tmp ${BIN} && chmod +x ${BIN}`); onProg && onProg(1); onStep && onStep('安装完成'); return true
+    } catch (e) { log && log('✗ 读取文件失败: ' + (e && e.message || e)); onStep && onStep('读取本地文件失败'); return false }
   }
   async function installOrUpdate(logEl) {
     const say = m => { if (logEl) { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight } LOG_TAG(m) }
@@ -608,7 +639,7 @@
       mccAutoStarted = false
       panel.classList.add('need-init')
       $('initfill').style.width = '0'
-      $('initpct').textContent = '测速核心已卸载'
+      $('initpct').textContent = '测速核心已卸载'; setInitStep('测速核心已卸载')
       const ib = panel.querySelector('.st-init .st-btn[data-iact="install"]'); if (ib) { ib.disabled = false; ib.textContent = '下载并安装' }
       $('nt').textContent = '尚未测速'
       $('ns').textContent = '—'
@@ -634,19 +665,28 @@
     if (installed) autoUpdateMccMnc()
     if (!installed) { const a = (((await sh('uname -m', 3000)).content) || '').trim(); $('initarch').textContent = `设备架构 ${a} → ${goArch(a)}` }
   }
-  async function installWithProgress(onProg, log) {
+  async function installWithProgress(onProg, log, onStep) {
+    onStep && onStep('读取安装配置')
     const inst = (await readCfg()).install || {}
-    const goarch = goArch((((await sh('uname -m', 3000)).content) || '').trim())
+    onStep && onStep('检测设备架构')
+    const rawArch = (((await sh('uname -m', 3000)).content) || '').trim()
+    const goarch = goArch(rawArch)
+    onStep && onStep(`设备架构 ${rawArch || 'unknown'} -> ${goarch}`)
     const urls = binUrls(inst, goarch)
+    if (!urls.length) { onStep && onStep('没有可用下载源'); return false }
     for (let i = 0; i < urls.length; i++) {
-      log && log(`下载源 ${i + 1}/${urls.length} · ${urls[i].replace(/^https?:\/\//, '').slice(0, 42)}…`)
+      const label = urls[i].replace(/^https?:\/\//, '').slice(0, 58)
+      log && log(`下载源 ${i + 1}/${urls.length} · ${label}…`)
+      onStep && onStep(`尝试下载源 ${i + 1}/${urls.length}: ${label}`)
       onProg && onProg(0, 0, 0)
-      if (await downloadOne(urls[i], onProg, log)) return true
+      if (await downloadOne(urls[i], onProg, log, onStep)) return true
+      onStep && onStep(`下载源 ${i + 1}/${urls.length} 失败,准备切换`)
     }
+    onStep && onStep('所有下载源失败')
     return false
   }
   const initDone = () => {
-    lsSet(NAME + '_inst', 'yes'); $('initfill').style.width = '100%'; $('initpct').textContent = '✓ 安装完成'
+    lsSet(NAME + '_inst', 'yes'); $('initfill').style.width = '100%'; $('initpct').textContent = '✓ 安装完成'; setInitStep('安装完成')
     const ib = panel.querySelector('.st-init .st-btn[data-iact="install"]'); if (ib) { ib.textContent = '完成 ✓'; ib.disabled = true }
     setTimeout(() => {
       const init = panel.querySelector('.st-init')
@@ -656,26 +696,28 @@
   }
   async function runInstall() {
     const btn = panel.querySelector('.st-init .st-btn[data-iact="install"]'); if (!btn || btn.disabled) return
-    btn.disabled = true; btn.textContent = '下载中…'; $('initpct').textContent = '准备下载…'; $('initfill').style.width = '0'
+    const step = s => setInitStep(s)
+    btn.disabled = true; btn.textContent = '下载中…'; $('initpct').textContent = '准备下载…'; $('initfill').style.width = '0'; step('准备下载测速核心')
     const ok = await installWithProgress((pct, got, total) => {
       $('initfill').style.width = Math.round(pct * 100) + '%'
       $('initpct').textContent = total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB · ${Math.round(pct * 100)}%` : (got ? `已下载 ${(got / 1048576).toFixed(1)} MB…` : '下载中…')
-    }, m => { $('initpct').textContent = m })
+    }, m => { step(m) }, step)
     if (ok) initDone()
-    else { btn.disabled = false; btn.textContent = '重试下载'; $('initpct').textContent = '✗ 所有下载源失败,可填自定义源或手动上传文件'; $('initmore').style.display = 'flex' }
+    else { btn.disabled = false; btn.textContent = '重试下载'; $('initpct').textContent = '✗ 所有下载源失败,可填自定义源或手动上传文件'; step('安装失败,请更换下载源或手动上传'); $('initmore').style.display = 'flex' }
   }
   async function runFileInstall(file) {
     if (!file) return
+    const step = s => setInitStep(s)
     const btn = panel.querySelector('.st-init .st-btn[data-iact="install"]'); if (btn) btn.disabled = true
-    $('initpct').textContent = '安装本地文件…'; $('initfill').style.width = '0'
-    const ok = await installFromFile(file, pct => { $('initfill').style.width = Math.round(pct * 100) + '%' }, m => { $('initpct').textContent = m })
-    if (ok) initDone(); else { if (btn) btn.disabled = false; $('initpct').textContent = '✗ 本地文件安装失败(需选对应架构的 better-speedtest 二进制)' }
+    $('initpct').textContent = '安装本地文件…'; $('initfill').style.width = '0'; step('准备安装本地文件')
+    const ok = await installFromFile(file, pct => { $('initfill').style.width = Math.round(pct * 100) + '%' }, m => { step(m) }, step)
+    if (ok) initDone(); else { if (btn) btn.disabled = false; $('initpct').textContent = '✗ 本地文件安装失败(需选对应架构的 better-speedtest 二进制)'; step('本地文件安装失败') }
   }
   panel.querySelectorAll('.st-init [data-iact]').forEach(b => b.onclick = async () => {
     const a = b.dataset.iact
     if (a === 'install') runInstall()
     else if (a === 'adv') { const m = $('initmore'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex' }
-    else if (a === 'saveurl') { const u = $('initurl').value.trim(); if (u) { await patchCfg({ install: { binary_url: u } }); $('initpct').textContent = '已设自定义源,点「下载并安装」重试' } }
+    else if (a === 'saveurl') { const u = $('initurl').value.trim(); if (u) { await patchCfg({ install: { binary_url: u } }); $('initpct').textContent = '已设自定义源,点「下载并安装」重试'; setInitStep('已保存自定义下载源') } }
   })
   $('initfile').onchange = ev => runFileInstall(ev.target.files && ev.target.files[0])
 
