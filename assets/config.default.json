@@ -21,15 +21,15 @@
     "carrier": [
       "manual",
       "at",
+      "geo:cnspeed",
       "geo:aapq",
-      "geo:ipip",
-      "geo:cnspeed"
+      "geo:ipip"
     ],
     "location": [
       "manual",
+      "geo:cnspeed",
       "geo:aapq",
-      "geo:ipip",
-      "geo:cnspeed"
+      "geo:ipip"
     ]
   },
   "at": {

@@ -29,7 +29,7 @@ func DetectAT(cfg *config.Config) (string, error) {
 			return "", errNoAT
 		}
 		return p, nil
-	case <-time.After(25 * time.Second):
+	case <-time.After(8 * time.Second):
 		return "", errNoAT
 	}
 }

@@ -25,7 +25,7 @@ import (
 	"better-speedtest/internal/selector"
 )
 
-const Version = "0.0.2"
+const Version = "0.0.3"
 
 const devConfigPath = "/data/plugins/better-speedtest/config.json"
 
@@ -225,7 +225,7 @@ func cmdTest(args []string) {
 		report.Status("start", "准备测速…")
 	}
 
-	loc := geo.Resolve(cfg)
+	loc := geo.ResolveWithStatus(cfg, func(msg string) { report.Status("geo", msg) })
 	mainland := isMainlandChina(loc)
 	preferRegion := "global"
 	if mainland {

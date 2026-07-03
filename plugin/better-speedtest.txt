@@ -623,7 +623,7 @@
   }
   async function installOrUpdate(logEl) {
     const say = m => { if (logEl) { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight } LOG_TAG(m) }
-    return installWithProgress(null, say)
+    return installWithProgress(null, say, say)
   }
 
   async function uninstallCore(logEl) {
@@ -739,7 +739,7 @@
     <div class="st-fs"><h4>运营商 / 定位覆盖</h4><div class="st-row"><label>运营商</label>${selHTML(NAME + '_op', '', [{ v: '', label: '自动' }, { v: '移动', label: '移动' }, { v: '联通', label: '联通' }, { v: '电信', label: '电信' }, { v: '广电', label: '广电' }], m.carrier)}<input class="st-input" id="${NAME}_prov" placeholder="省" value="${esc(m.province)}" style="width:78px"><input class="st-input" id="${NAME}_city" placeholder="市" value="${esc(m.city)}" style="width:78px"></div></div>
     <div class="st-fs"><h4>测速参数</h4><div class="st-row"><label>下载线程</label><input class="st-input" id="${NAME}_tdl" type="number" value="${esc(e.threads_dl || 8)}" style="width:66px"><label style="min-width:auto">上传</label><input class="st-input" id="${NAME}_tul" type="number" value="${esc(e.threads_ul || 4)}" style="width:66px"><label style="min-width:auto">时长s</label><input class="st-input" id="${NAME}_dur" type="number" value="${esc(e.duration_s || 15)}" style="width:66px"><label style="min-width:auto">WAN</label><input class="st-input" id="${NAME}_if" placeholder="auto" value="${esc(e.wan_iface === 'auto' ? '' : e.wan_iface)}" style="width:96px"></div></div>
     <div class="st-fs wide"><h4>自定义测速源 (CDN)</h4><div id="${NAME}_cdnlist"></div><button class="st-btn ghost" id="${NAME}_cdnadd" style="margin-top:2px">+ 添加</button><div style="font-size:11px;color:var(--muted2);margin-top:6px">上传测试会 POST 到该 URL,不支持则显示“不行”。</div></div>
-    <div class="st-fs wide"><h4>二进制下载 / 更新源</h4><div class="st-row"><label>binary_url</label><input class="st-input" id="${NAME}_burl" value="${esc(inst.binary_url || DEFAULT_BIN_URL)}" placeholder="${esc(DEFAULT_BIN_URL)}"></div><div class="st-row"><label>manifest</label><input class="st-input" id="${NAME}_murl" value="${esc(inst.manifest_url)}" placeholder="可选,含 sha256"></div><div class="st-row"><label>代理前缀</label><input class="st-input" id="${NAME}_prx" value="${esc(inst.proxy)}" placeholder="https://ghfast.top/"></div><div class="st-row"><button class="st-btn primary" id="${NAME}_install">安装 / 更新</button><button class="st-btn" id="${NAME}_updtbl">更新运营商表</button><button class="st-btn danger" id="${NAME}_uninstall">卸载测速核心</button></div><div class="st-logbody" id="${NAME}_instlog" style="display:none;border:1px solid var(--line2);border-radius:8px;padding:8px;margin-top:6px"></div></div>
+    <div class="st-fs wide"><h4>二进制下载 / 更新源</h4><div class="st-row"><label>binary_url</label><input class="st-input" id="${NAME}_burl" value="${esc(inst.binary_url || DEFAULT_BIN_URL)}" placeholder="${esc(DEFAULT_BIN_URL)}"></div><div class="st-row"><label>manifest</label><input class="st-input" id="${NAME}_murl" value="${esc(inst.manifest_url)}" placeholder="可选,含 sha256"></div><div class="st-row"><label>代理前缀</label><input class="st-input" id="${NAME}_prx" value="${esc(inst.proxy)}" placeholder="https://ghfast.top/"></div><div class="st-row"><button class="st-btn primary" id="${NAME}_install">安装测速核心</button><button class="st-btn" id="${NAME}_coreupdate">更新测速核心</button><button class="st-btn" id="${NAME}_updtbl">更新运营商表</button><button class="st-btn danger" id="${NAME}_uninstall">卸载测速核心</button></div><div class="st-logbody" id="${NAME}_instlog" style="display:none;border:1px solid var(--line2);border-radius:8px;padding:8px;margin-top:6px"></div></div>
     <div class="st-fs"><div class="st-row"><button class="st-btn primary" id="${NAME}_save">保存设置</button><span id="${NAME}_savemsg" style="font-size:11.5px;color:var(--muted)"></span></div></div>`
     w.querySelectorAll(`#${NAME}_typesel button`).forEach(b => b.onclick = () => { testType = b.dataset.tp; lsSet(NAME + '_type', testType); b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); updateSourcePreview(testType); setStatus(({ auto: '类型: 自动', cnspeed: '类型: 全球网测', ookla: '类型: Ookla', cdn: '类型: 自定义 CDN 源' })[testType] || '类型: 自动') })
     w.querySelectorAll(`#${NAME}_dir button`).forEach(b => b.onclick = () => { dir = b.dataset.dir; b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)) })
@@ -756,7 +756,9 @@
                                   : (cfg.cdn_sources && cfg.cdn_sources.length ? cfg.cdn_sources : [])
     cdnInit.forEach(s => cdnList.appendChild(cdnRow(s)))
     w.querySelector(`#${NAME}_cdnadd`).onclick = () => cdnList.appendChild(cdnRow())
-    w.querySelector(`#${NAME}_install`).onclick = async () => { const il = w.querySelector(`#${NAME}_instlog`); il.style.display = 'block'; il.textContent = ''; await saveSettings(true); const ok = await installOrUpdate(il); setStatus(ok ? '安装完成' : '安装失败', !ok) }
+    const runCoreUpdate = async label => { const il = w.querySelector(`#${NAME}_instlog`); il.style.display = 'block'; il.textContent = ''; await saveSettings(true); const ok = await installOrUpdate(il); setStatus(ok ? `${label}完成` : `${label}失败`, !ok) }
+    w.querySelector(`#${NAME}_install`).onclick = () => runCoreUpdate('安装')
+    w.querySelector(`#${NAME}_coreupdate`).onclick = () => runCoreUpdate('更新')
     w.querySelector(`#${NAME}_updtbl`).onclick = async () => { setStatus('更新表…'); setStatus(((await sh(`${BIN} update 2>&1`, 60000)).content || '').trim().slice(0, 50)) }
     w.querySelector(`#${NAME}_uninstall`).onclick = async () => { const il = w.querySelector(`#${NAME}_instlog`); il.style.display = 'block'; il.textContent = ''; await uninstallCore(il) }
     w.querySelector(`#${NAME}_save`).onclick = () => saveSettings(false)
